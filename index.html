@@ -636,6 +636,7 @@ const Calendar = ({ token, onNavigate }) => {
   const [weekOffset, setWeekOffset] = useState(0);
   const [showNew, setShowNew] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
+  const [editSession, setEditSession] = useState(null);
 
   const getMonday = (offset) => {
     const now = new Date();
@@ -780,7 +781,7 @@ const Calendar = ({ token, onNavigate }) => {
                 Notă de ședință
               </button>
               <button className="btn btn-outline btn-sm"
-                onClick={() => setShowEdit(true)}>
+                onClick={() => { setEditSession(selected); setShowEdit(true); setSelected(null); }}>
                 Editează
               </button>
               <button className="btn btn-sm" style={{ color: "var(--danger)", border: "1px solid var(--danger)" }}

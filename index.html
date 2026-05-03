@@ -1402,6 +1402,92 @@ const Register = ({ onBack, onSuccess }) => {
   );
 };
 
+// ── Admin Panel ────────────────────────────────────────────
+const ADMIN_EMAIL = "papacostea@gmail.com";
+
+const Admin = ({ token, currentUser }) => {
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    apiFetch("/api/admin/users", {}, token)
+      .then(d => { setUsers(d); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [token]);
+
+  const toggleBan = async (userId, banned) => {
+    try {
+      await apiFetch(`/api/admin/users/${userId}/${banned ? "unban" : "ban"}`, { method: "POST" }, token);
+      setUsers(u => u.map(x => x.id === userId ? { ...x, banned: !banned } : x));
+    } catch(err) { alert(err.message); }
+  };
+
+  const filtered = users.filter(u =>
+    u.email?.toLowerCase().includes(search.toLowerCase()) ||
+    u.cabinet_name?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  if (loading) return <div className="info-box">Se încarcă utilizatorii...</div>;
+
+  return (
+    <div>
+      <div className="row-between" style={{ marginBottom: 18 }}>
+        <input className="form-input" style={{ maxWidth: 280 }}
+          placeholder="Caută utilizator..."
+          value={search} onChange={e => setSearch(e.target.value)} />
+        <div className="row">
+          <span className="tag tag-green">{users.filter(u => !u.banned).length} activi</span>
+          <span className="tag tag-gray">{users.filter(u => u.banned).length} banați</span>
+        </div>
+      </div>
+
+      <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+        <table>
+          <thead>
+            <tr>
+              {["Utilizator","Cabinet","CPR","Înregistrat","Status","Acțiuni"].map(h => <th key={h}>{h}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.length === 0
+              ? <tr><td colSpan={6} style={{ textAlign:"center", color:"var(--muted)", padding: 32 }}>Nu există utilizatori.</td></tr>
+              : filtered.map(u => (
+                <tr key={u.id}>
+                  <td>
+                    <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:13, fontWeight:500 }}>{u.email}</div>
+                    <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:11, color:"var(--muted)" }}>{u.full_name || "—"}</div>
+                  </td>
+                  <td style={{ fontFamily:"'DM Sans',sans-serif", fontSize:13 }}>{u.cabinet_name || "—"}</td>
+                  <td style={{ fontFamily:"'DM Sans',sans-serif", fontSize:13, color:"var(--muted)" }}>{u.cod_cpr || "—"}</td>
+                  <td style={{ fontFamily:"'DM Sans',sans-serif", fontSize:12, color:"var(--muted)" }}>
+                    {new Date(u.created_at).toLocaleDateString("ro")}
+                  </td>
+                  <td>
+                    <span className={`tag ${u.banned ? "tag-gray" : "tag-green"}`}>
+                      {u.banned ? "Banat" : "Activ"}
+                    </span>
+                  </td>
+                  <td>
+                    {u.email !== ADMIN_EMAIL && (
+                      <button
+                        className={`btn btn-sm ${u.banned ? "btn-outline" : ""}`}
+                        style={u.banned ? {} : { color:"var(--danger)", border:"1px solid var(--danger)" }}
+                        onClick={() => toggleBan(u.id, u.banned)}>
+                        {u.banned ? "Activează" : "Blochează"}
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
 // ── App principal ──────────────────────────────────────────
 const VIEWS = [
   { id: "dashboard", label: "Dashboard", icon: "▦" },
@@ -1463,6 +1549,8 @@ const App = () => {
 
   const token = session.access_token;
 
+  const isAdmin = session?.user?.email === "papacostea@gmail.com";
+
   const renderView = () => {
     switch(view) {
       case "dashboard": return <Dashboard token={token} cabinetInfo={cabinetInfo} />;
@@ -1470,6 +1558,7 @@ const App = () => {
       case "patients": return <Patients token={token} />;
       case "documents": return <Documents token={token} sessionContext={sessionContext} onClearContext={() => setSessionContext(null)} />;
       case "settings": return <Settings token={token} cabinetInfo={cabinetInfo} onLogout={handleLogout} />;
+      case "admin": return isAdmin ? <Admin token={token} currentUser={session?.user} /> : null;
       default: return null;
     }
   };
@@ -1499,6 +1588,11 @@ const App = () => {
           <div className={`nav-item ${view === "settings" ? "active" : ""}`} onClick={() => setView("settings")}>
             <span className="nav-icon">◈</span> Setări
           </div>
+          {isAdmin && (
+            <div className={`nav-item ${view === "admin" ? "active" : ""}`} onClick={() => setView("admin")}>
+              <span className="nav-icon">⚙</span> Admin
+            </div>
+          )}
         </nav>
         <div className="sidebar-user">
           <div className="user-name">{cabinetInfo?.profile?.full_name || session.user.email}</div>

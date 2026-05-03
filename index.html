@@ -673,7 +673,7 @@ const Calendar = ({ token, onNavigate }) => {
                 Notă de ședință
               </button>
               <button className="btn btn-outline btn-sm"
-                onClick={() => alert("Editare — în curând")}>
+                onClick={() => { setSelected(null); onNavigate && onNavigate("calendar"); }}>
                 Editează
               </button>
               <button className="btn btn-sm" style={{ color: "var(--danger)", border: "1px solid var(--danger)" }}
@@ -1082,10 +1082,17 @@ const App = () => {
 
   const token = session.access_token;
 
+  const [prevView, setPrevView] = useState(null);
+
+  const navigateTo = (newView) => {
+    setPrevView(view);
+    setView(newView);
+  };
+
   const renderView = () => {
     switch(view) {
       case "dashboard": return <Dashboard token={token} cabinetInfo={cabinetInfo} />;
-      case "calendar": return <Calendar token={token} onNavigate={setView} />;
+      case "calendar": return <Calendar token={token} onNavigate={navigateTo} />;
       case "patients": return <Patients token={token} />;
       case "documents": return <Documents token={token} />;
       case "settings": return <Settings token={token} cabinetInfo={cabinetInfo} onLogout={handleLogout} />;
@@ -1129,6 +1136,11 @@ const App = () => {
         <div className="topbar">
           <h1 className="page-title">{pageTitle}</h1>
           <div className="topbar-right">
+            {prevView && prevView !== view && (
+              <button className="btn btn-outline btn-sm" onClick={() => { setView(prevView); setPrevView(null); }}>
+                ← Înapoi
+              </button>
+            )}
             <span className="pill">cabinet.app · beta</span>
           </div>
         </div>

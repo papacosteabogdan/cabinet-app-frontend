@@ -1337,13 +1337,13 @@ const App = () => {
     setCabinetInfo(null);
   };
 
+  const [showRegister, setShowRegister] = useState(false);
+
   if (loading) return (
     <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100vh", background:"var(--navy)" }}>
       <div style={{ color:"var(--gold)", fontSize:24, fontWeight:600 }}>cabinet.app</div>
     </div>
   );
-
-  const [showRegister, setShowRegister] = useState(false);
 
   if (!session && showRegister) return (
     <Register

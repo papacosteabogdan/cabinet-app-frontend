@@ -401,6 +401,103 @@ const Dashboard = ({ token, cabinetInfo }) => {
   );
 };
 
+// ── Modal Editare Ședință ──────────────────────────────────
+const EditSessionModal = ({ token, session, onClose, onSaved }) => {
+  const d = new Date(session.starts_at);
+  const localDate = d.toLocaleDateString("sv"); // YYYY-MM-DD
+  const localHour = String(d.getHours()).padStart(2,"0") + ":00";
+
+  const [form, setForm] = useState({
+    date: localDate,
+    hour: localHour,
+    session_type: session.session_type || "individual",
+    modality: session.modality || "in_person",
+    notes: session.notes || "",
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+
+  const save = async () => {
+    setSaving(true); setError(null);
+    try {
+      const tempDate = new Date(`${form.date}T${form.hour}:00`);
+      const offsetMin = tempDate.getTimezoneOffset();
+      const offsetSign = offsetMin <= 0 ? "+" : "-";
+      const offsetAbs = Math.abs(offsetMin);
+      const offsetH = String(Math.floor(offsetAbs/60)).padStart(2,"0");
+      const offsetM = String(offsetAbs%60).padStart(2,"0");
+      const isoDate = `${form.date}T${form.hour}:00${offsetSign}${offsetH}:${offsetM}`;
+      const duration_min = form.session_type === "cuplu" ? 100 : 50;
+      await apiFetch(`/api/sessions/${session.id}`, {
+        method: "PATCH",
+        body: { starts_at: isoDate, duration_min, session_type: form.session_type, modality: form.modality, notes: form.notes }
+      }, token);
+      onSaved();
+      onClose();
+    } catch(err) { setError(err.message); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" style={{ width: 460 }} onClick={e => e.stopPropagation()}>
+        <div className="modal-title">
+          Editează programare
+          <button className="modal-close" onClick={onClose}>×</button>
+        </div>
+        <div className="info-box" style={{ marginBottom: 16 }}>
+          {session.patient?.last_name} {session.patient?.first_name}
+        </div>
+        {error && <div style={{ background:"#FEE2E2", border:"1px solid #FCA5A5", borderRadius:6, padding:"10px 14px", marginBottom:14, fontFamily:"'DM Sans',sans-serif", fontSize:12, color:"var(--danger)" }}>{error}</div>}
+        <div style={{ display:"grid", gap:14 }}>
+          <div style={{ display:"grid", gridTemplateColumns:"2fr 1fr", gap:12 }}>
+            <div className="form-group" style={{ margin:0 }}>
+              <label className="form-label">Data</label>
+              <input className="form-input" type="date" value={form.date}
+                onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
+            </div>
+            <div className="form-group" style={{ margin:0 }}>
+              <label className="form-label">Ora</label>
+              <select className="form-input" value={form.hour} onChange={e => setForm(f => ({ ...f, hour: e.target.value }))}>
+                {["08:00","09:00","10:00","11:00","12:00","13:00","14:00","15:00","16:00","17:00","18:00","19:00","20:00"].map(h =>
+                  <option key={h} value={h}>{h}</option>
+                )}
+              </select>
+            </div>
+          </div>
+          <div className="form-group" style={{ margin:0 }}>
+            <label className="form-label">Tip ședință</label>
+            <select className="form-input" value={form.session_type} onChange={e => setForm(f => ({ ...f, session_type: e.target.value }))}>
+              <option value="individual">Individual</option>
+              <option value="cuplu">Cuplu</option>
+              <option value="minor">Minor</option>
+            </select>
+          </div>
+          <div className="form-group" style={{ margin:0 }}>
+            <label className="form-label">Modalitate</label>
+            <select className="form-input" value={form.modality} onChange={e => setForm(f => ({ ...f, modality: e.target.value }))}>
+              <option value="in_person">Față în față</option>
+              <option value="online">Online</option>
+            </select>
+          </div>
+          <div className="form-group" style={{ margin:0 }}>
+            <label className="form-label">Note</label>
+            <textarea className="form-input" style={{ resize:"vertical", minHeight:60 }}
+              value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
+          </div>
+        </div>
+        <div className="divider" />
+        <div className="row">
+          <button className="btn btn-primary" onClick={save} disabled={saving}>
+            {saving ? "Se salvează..." : "Salvează modificările"}
+          </button>
+          <button className="btn btn-outline" onClick={onClose}>Anulează</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ── Modal Programare Nouă ──────────────────────────────────
 const NewSessionModal = ({ token, onClose, onSaved, defaultDate }) => {
   const [patients, setPatients] = useState([]);
@@ -538,6 +635,7 @@ const Calendar = ({ token, onNavigate }) => {
   const [selected, setSelected] = useState(null);
   const [weekOffset, setWeekOffset] = useState(0);
   const [showNew, setShowNew] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
 
   const getMonday = (offset) => {
     const now = new Date();
@@ -643,6 +741,15 @@ const Calendar = ({ token, onNavigate }) => {
         </div>
       </div>
 
+      {showEdit && selected && (
+        <EditSessionModal
+          token={token}
+          session={selected}
+          onClose={() => setShowEdit(false)}
+          onSaved={() => { setShowEdit(false); setSelected(null); loadWeek(); }}
+        />
+      )}
+
       {showNew && (
         <NewSessionModal
           token={token}
@@ -673,7 +780,7 @@ const Calendar = ({ token, onNavigate }) => {
                 Notă de ședință
               </button>
               <button className="btn btn-outline btn-sm"
-                onClick={() => { setSelected(null); onNavigate && onNavigate("calendar"); }}>
+                onClick={() => setShowEdit(true)}>
                 Editează
               </button>
               <button className="btn btn-sm" style={{ color: "var(--danger)", border: "1px solid var(--danger)" }}

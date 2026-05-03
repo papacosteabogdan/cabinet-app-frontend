@@ -234,14 +234,15 @@
     .login-error { background: rgba(184,84,80,0.1); border: 1px solid rgba(184,84,80,0.3); border-radius: 8px; padding: 10px 14px; font-family: 'DM Sans',sans-serif; font-size: 13px; color: var(--danger); margin-bottom: 16px; }
 
     /* Calendar */
-    .calendar-grid { display: grid; grid-template-columns: 80px repeat(5, 1fr); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--white); }
-    .cal-header { background: linear-gradient(135deg, #2C4A3E 0%, #3d6b55 100%); color: rgba(247,243,238,0.9); font-family: 'DM Sans',sans-serif; font-size: 12px; padding: 12px 8px; text-align: center; font-weight: 500; }
+    .calendar-grid, .cal-grid { display: grid; grid-template-columns: 80px repeat(5, 1fr); }
+    .calendar-grid { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--white); box-shadow: 0 2px 16px rgba(44,74,62,0.06); }
+    .cal-header { background: linear-gradient(135deg, #2C4A3E 0%, #3d6b55 100%); color: rgba(247,243,238,0.9); font-family: 'DM Sans',sans-serif; font-size: 12px; padding: 10px 8px; text-align: center; font-weight: 500; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
     .cal-header.today { color: #E8A882; font-weight: 700; }
-    .cal-time { font-family: 'DM Sans',sans-serif; font-size: 11px; color: var(--muted); padding: 0 8px; display: flex; align-items: flex-start; justify-content: flex-end; padding-top: 6px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); height: 52px; }
-    .cal-cell { border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); height: 52px; position: relative; cursor: pointer; transition: background 0.1s; }
-    .cal-cell:hover { background: rgba(92,122,107,0.05); }
+    .cal-time { font-family: 'DM Sans',sans-serif; font-size: 11px; color: var(--muted); padding: 0 8px; display: flex; align-items: flex-start; justify-content: flex-end; padding-top: 6px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); height: 52px; background: var(--white); }
+    .cal-cell { border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); height: 52px; position: relative; cursor: pointer; transition: background 0.1s; background: var(--white); }
+    .cal-cell:hover { background: rgba(92,122,107,0.04); }
     .cal-cell:last-child { border-right: none; }
-    .cal-event { position: absolute; left: 3px; right: 3px; top: 3px; border-radius: 6px; padding: 4px 7px; font-family: 'DM Sans',sans-serif; font-size: 11px; cursor: pointer; overflow: hidden; background: linear-gradient(135deg, var(--sage) 0%, #3d6b55 100%); color: white; font-weight: 500; box-shadow: 0 2px 8px rgba(92,122,107,0.3); }
+    .cal-event { position: absolute; left: 3px; right: 3px; top: 3px; border-radius: 6px; padding: 4px 7px; font-family: 'DM Sans',sans-serif; font-size: 11px; cursor: pointer; overflow: hidden; background: linear-gradient(135deg, var(--sage) 0%, #3d6b55 100%); color: white; font-weight: 500; box-shadow: 0 2px 8px rgba(92,122,107,0.3); transition: all 0.15s; }
     .cal-event:hover { box-shadow: 0 4px 14px rgba(92,122,107,0.4); transform: translateY(-1px); }
 
     /* Patient avatar */
@@ -784,7 +785,7 @@ const Calendar = ({ token, onNavigate }) => {
 
       <div className="card" style={{ padding: 0, overflow: "hidden" }}>
         <div className="cal-grid" style={{ borderBottom: "1px solid var(--border)" }}>
-          <div className="cal-header" />
+          <div style={{ background:"linear-gradient(135deg, #2C4A3E 0%, #3d6b55 100%)", borderRight:"1px solid rgba(255,255,255,0.1)" }} />
           {DAYS.map((d, i) => (
             <div className="cal-header" key={i} style={{ borderLeft: "1px solid var(--border)" }}>
               {d}<br/>
@@ -1195,6 +1196,16 @@ const Documents = ({ token, sessionContext, onClearContext }) => {
               </div>
               <Tag type={d.status} />
               {d.docx_url && <a href={d.docx_url} target="_blank" className="btn btn-outline btn-sm">↓ DOCX</a>}
+              <button className="btn btn-sm" style={{ color:"var(--danger)", border:"1px solid var(--danger)", padding:"5px 10px" }}
+                onClick={async () => {
+                  if (!confirm("Ștergi acest document?")) return;
+                  try {
+                    await apiFetch(`/api/documents/${d.id}`, { method: "DELETE" }, token);
+                    loadDocs();
+                  } catch(err) { alert(err.message); }
+                }}>
+                ✕
+              </button>
             </div>
           ))
         }

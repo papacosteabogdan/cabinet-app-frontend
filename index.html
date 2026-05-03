@@ -538,27 +538,28 @@ const Calendar = ({ token }) => {
   const [selected, setSelected] = useState(null);
   const [weekOffset, setWeekOffset] = useState(0);
   const [showNew, setShowNew] = useState(false);
-  const [refresh, setRefresh] = useState(0);
 
-  // Calculează monday-ul săptămânii cu offset
   const getMonday = (offset) => {
     const now = new Date();
-    const day = now.getDay(); // 0=Sun, 1=Mon...6=Sat
-    // Distanța până la luni: dacă e duminică (0) → -6, altfel → -(day-1)
+    const day = now.getDay();
     const diffToMonday = day === 0 ? -6 : -(day - 1);
     const monday = new Date(now);
     monday.setDate(now.getDate() + diffToMonday + offset * 7);
-    monday.setHours(0, 0, 0, 0);
+    monday.setHours(12, 0, 0, 0);
     return monday;
   };
 
-  const loadWeek = useCallback(() => {
+  useEffect(() => {
     const monday = getMonday(weekOffset);
     apiFetch(`/api/sessions/week?date=${monday.toISOString()}`, {}, token)
       .then(setWeekData).catch(console.error);
-  }, [token, weekOffset, refresh]);
+  }, [token, weekOffset]);
 
-  useEffect(() => { loadWeek(); }, [loadWeek]);
+  const loadWeek = () => {
+    const monday = getMonday(weekOffset);
+    apiFetch(`/api/sessions/week?date=${monday.toISOString()}`, {}, token)
+      .then(setWeekData).catch(console.error);
+  };
 
   const getAptForDayHour = (dayIdx, hour) => {
     if (!weekData?.sessions) return null;
@@ -637,7 +638,7 @@ const Calendar = ({ token }) => {
         <NewSessionModal
           token={token}
           onClose={() => setShowNew(false)}
-          onSaved={() => { setRefresh(r => r + 1); setShowNew(false); }}
+          onSaved={() => { loadWeek(); setShowNew(false); }}
         />
       )}
 

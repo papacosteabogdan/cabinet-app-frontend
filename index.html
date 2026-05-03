@@ -422,15 +422,22 @@ const NewSessionModal = ({ token, onClose, onSaved, defaultDate }) => {
 
   const save = async () => {
     if (!form.patient_id) { setError("Selectează un client."); return; }
-    if (!form.starts_at) { setError("Selectează data și ora."); return; }
+    if (!form.date || !form.hour) { setError("Selectează data și ora."); return; }
     setSaving(true); setError(null);
     try {
-      // Convertim datetime-local în ISO cu timezone corect
-      const localDate = new Date(form.starts_at);
+      if (!form.date || !form.hour) { setError("Selectează data și ora."); setSaving(false); return; }
+      const localDate = new Date(`${form.date}T${form.hour}:00`);
       const isoDate = localDate.toISOString();
       await apiFetch("/api/sessions", {
         method: "POST",
-        body: { ...form, starts_at: isoDate, duration_min: Number(form.duration_min) }
+        body: {
+          patient_id: form.patient_id,
+          starts_at: isoDate,
+          duration_min: Number(form.duration_min),
+          session_type: form.session_type,
+          modality: form.modality,
+          notes: form.notes,
+        }
       }, token);
       onSaved();
       onClose();
@@ -457,11 +464,22 @@ const NewSessionModal = ({ token, onClose, onSaved, defaultDate }) => {
             </select>
           </div>
 
-          <div className="form-group" style={{ margin:0 }}>
-            <label className="form-label">Data și ora *</label>
-            <input className="form-input" type="datetime-local"
-              value={form.starts_at}
-              onChange={e => setForm(f => ({ ...f, starts_at: e.target.value }))} />
+          <div style={{ display:"grid", gridTemplateColumns:"2fr 1fr", gap:12 }}>
+            <div className="form-group" style={{ margin:0 }}>
+              <label className="form-label">Data *</label>
+              <input className="form-input" type="date"
+                value={form.date || ""}
+                onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
+            </div>
+            <div className="form-group" style={{ margin:0 }}>
+              <label className="form-label">Ora *</label>
+              <select className="form-input" value={form.hour || ""} onChange={e => setForm(f => ({ ...f, hour: e.target.value }))}>
+                <option value="">--</option>
+                {["08:00","09:00","10:00","11:00","12:00","13:00","14:00","15:00","16:00","17:00","18:00","19:00","20:00"].map(h =>
+                  <option key={h} value={h}>{h}</option>
+                )}
+              </select>
+            </div>
           </div>
 
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
@@ -535,13 +553,17 @@ const Calendar = ({ token }) => {
 
   const getAptForDayHour = (dayIdx, hour) => {
     if (!weekData?.sessions) return null;
+    const targetDate = weekDates[dayIdx];
+    if (!targetDate) return null;
     return weekData.sessions.find(s => {
       const d = new Date(s.starts_at);
-      // Folosim ora locală (nu UTC)
-      const dow = d.getDay(); // 0=Dum, 1=Lun...
-      const isoDay = dow === 0 ? 7 : dow; // 1=Lun...7=Dum
-      const localH = d.toLocaleTimeString("ro", { hour:"2-digit", minute:"2-digit", hour12:false });
-      return isoDay === dayIdx + 1 && localH === hour;
+      // Compară ziua calendaristică (local)
+      const sameDay = d.getDate() === targetDate.getDate() &&
+                      d.getMonth() === targetDate.getMonth() &&
+                      d.getFullYear() === targetDate.getFullYear();
+      // Compară ora locală
+      const localH = String(d.getHours()).padStart(2,"0") + ":00";
+      return sameDay && localH === hour;
     });
   };
 

@@ -515,6 +515,7 @@ const Calendar = ({ token }) => {
   const [selected, setSelected] = useState(null);
   const [weekOffset, setWeekOffset] = useState(0);
   const [showNew, setShowNew] = useState(false);
+  const [refresh, setRefresh] = useState(0);
 
   // Calculează monday-ul săptămânii cu offset
   const getMonday = (offset) => {
@@ -530,7 +531,7 @@ const Calendar = ({ token }) => {
     const monday = getMonday(weekOffset);
     apiFetch(`/api/sessions/week?date=${monday.toISOString()}`, {}, token)
       .then(setWeekData).catch(console.error);
-  }, [token, weekOffset]);
+  }, [token, weekOffset, refresh]);
 
   useEffect(() => { loadWeek(); }, [loadWeek]);
 
@@ -606,7 +607,7 @@ const Calendar = ({ token }) => {
         <NewSessionModal
           token={token}
           onClose={() => setShowNew(false)}
-          onSaved={loadWeek}
+          onSaved={() => { setRefresh(r => r + 1); setShowNew(false); }}
         />
       )}
 

@@ -660,8 +660,17 @@ const Calendar = ({ token }) => {
             <div className="divider" />
             <div className="row">
               <button className="btn btn-primary btn-sm">Notă de ședință</button>
-              <button className="btn btn-outline btn-sm">Editează</button>
-              <button className="btn btn-sm" style={{ color: "var(--danger)", border: "1px solid var(--danger)" }}>Anulează</button>
+              <button className="btn btn-sm" style={{ color: "var(--danger)", border: "1px solid var(--danger)" }}
+                onClick={async () => {
+                  if (!confirm("Anulezi această programare?")) return;
+                  try {
+                    await apiFetch(`/api/sessions/${selected.id}`, { method: "DELETE" }, token);
+                    setSelected(null);
+                    loadWeek();
+                  } catch(err) { alert(err.message); }
+                }}>
+                Anulează
+              </button>
             </div>
           </div>
         </div>

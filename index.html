@@ -41,23 +41,73 @@
 
     /* Mobile responsive */
     @media (max-width: 768px) {
-      .app { flex-direction: column; }
-      .sidebar { width: 100%; height: auto; flex-direction: row; flex-wrap: wrap; border-right: none; border-bottom: 1px solid rgba(201,168,76,0.15); }
-      .sidebar-logo { padding: 12px 16px; border-bottom: none; border-right: 1px solid rgba(201,168,76,0.12); }
-      .logo-text { font-size: 15px; }
-      .logo-sub { display: none; }
-      nav { display: flex; flex-direction: row; padding: 0; overflow-x: auto; flex: 1; }
-      .nav-section { display: none; }
-      .nav-item { padding: 12px 14px; border-left: none; border-bottom: 2px solid transparent; flex-direction: column; gap: 3px; font-size: 10px; text-align: center; white-space: nowrap; }
-      .nav-item.active { border-left: none; border-bottom-color: var(--gold); }
-      .nav-icon { font-size: 18px; }
-      .sidebar-user { display: none; }
-      .main { flex: 1; overflow: hidden; }
-      .topbar { padding: 12px 16px; }
-      .page-title { font-size: 18px; }
-      .content { padding: 16px; }
-      .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
-      .modal { width: calc(100vw - 32px) !important; max-height: 85vh; }
+      /* Ascunde sidebar complet pe mobil */
+      .sidebar { display: none; }
+      
+      /* Layout vertical */
+      .app { flex-direction: column; height: 100vh; }
+      .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+      
+      /* Topbar mobil */
+      .topbar { padding: 10px 14px; }
+      .page-title { font-size: 17px; }
+      
+      /* Content cu padding bottom pentru nav bar */
+      .content { padding: 14px; padding-bottom: 80px; }
+      
+      /* Grile pe o coloană */
+      .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; gap: 12px; }
+      
+      /* Modal full width */
+      .modal { width: calc(100vw - 24px) !important; max-height: 88vh; margin: 0 12px; }
+      
+      /* Carduri mai compacte */
+      .card { padding: 16px; }
+      .stat-num { font-size: 28px; }
+      
+      /* Tabel scroll orizontal */
+      table { font-size: 12px; }
+      td, th { padding: 8px 8px; }
+    }
+    
+    /* Bottom navigation bar - doar pe mobil */
+    .mobile-nav {
+      display: none;
+    }
+    @media (max-width: 768px) {
+      .mobile-nav {
+        display: flex;
+        position: fixed;
+        bottom: 0; left: 0; right: 0;
+        background: var(--navy);
+        border-top: 1px solid rgba(201,168,76,0.2);
+        z-index: 50;
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+      }
+      .mobile-nav-item {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 8px 4px;
+        cursor: pointer;
+        gap: 3px;
+        border: none;
+        background: transparent;
+        color: rgba(245,240,232,0.5);
+        font-family: 'DM Sans', sans-serif;
+        font-size: 10px;
+        letter-spacing: 0.03em;
+        transition: color 0.15s;
+      }
+      .mobile-nav-item.active {
+        color: var(--gold);
+      }
+      .mobile-nav-icon {
+        font-size: 20px;
+        line-height: 1;
+      }
     }
 
     /* Scrollbar */

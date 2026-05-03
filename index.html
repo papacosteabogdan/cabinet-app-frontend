@@ -533,7 +533,7 @@ const NewSessionModal = ({ token, onClose, onSaved, defaultDate }) => {
 };
 
 // ── Calendar ───────────────────────────────────────────────
-const Calendar = ({ token }) => {
+const Calendar = ({ token, onNavigate }) => {
   const [weekData, setWeekData] = useState(null);
   const [selected, setSelected] = useState(null);
   const [weekOffset, setWeekOffset] = useState(0);
@@ -584,6 +584,15 @@ const Calendar = ({ token }) => {
     d.setDate(monday.getDate() + i);
     return d;
   });
+
+  const cancelSession = async (id) => {
+    if (!confirm("Anulezi această programare?")) return;
+    try {
+      await apiFetch(`/api/sessions/${id}`, { method: "DELETE" }, token);
+      setSelected(null);
+      loadWeek();
+    } catch(err) { alert(err.message); }
+  };
 
   return (
     <div>
@@ -659,16 +668,16 @@ const Calendar = ({ token }) => {
             </div>
             <div className="divider" />
             <div className="row">
-              <button className="btn btn-primary btn-sm">Notă de ședință</button>
+              <button className="btn btn-primary btn-sm"
+                onClick={() => { setSelected(null); onNavigate && onNavigate("documents"); }}>
+                Notă de ședință
+              </button>
+              <button className="btn btn-outline btn-sm"
+                onClick={() => alert("Editare — în curând")}>
+                Editează
+              </button>
               <button className="btn btn-sm" style={{ color: "var(--danger)", border: "1px solid var(--danger)" }}
-                onClick={async () => {
-                  if (!confirm("Anulezi această programare?")) return;
-                  try {
-                    await apiFetch(`/api/sessions/${selected.id}`, { method: "DELETE" }, token);
-                    setSelected(null);
-                    loadWeek();
-                  } catch(err) { alert(err.message); }
-                }}>
+                onClick={() => cancelSession(selected.id)}>
                 Anulează
               </button>
             </div>
@@ -1076,7 +1085,7 @@ const App = () => {
   const renderView = () => {
     switch(view) {
       case "dashboard": return <Dashboard token={token} cabinetInfo={cabinetInfo} />;
-      case "calendar": return <Calendar token={token} />;
+      case "calendar": return <Calendar token={token} onNavigate={setView} />;
       case "patients": return <Patients token={token} />;
       case "documents": return <Documents token={token} />;
       case "settings": return <Settings token={token} cabinetInfo={cabinetInfo} onLogout={handleLogout} />;

@@ -860,7 +860,17 @@ const Calendar = ({ token, onNavigate }) => {
             <div className="divider" />
             <div className="row">
               <button className="btn btn-primary btn-sm"
-                onClick={() => { setSelected(null); onNavigate && onNavigate("documents"); }}>
+                onClick={() => {
+                  const ctx = {
+                    patient_id: selected.patient?.id,
+                    session_id: selected.id,
+                    patient_name: (selected.patient?.last_name || "") + " " + (selected.patient?.first_name || ""),
+                    session_date: new Date(selected.starts_at).toLocaleDateString("ro"),
+                    session_hour: new Date(selected.starts_at).toLocaleTimeString("ro", {hour:"2-digit", minute:"2-digit"}),
+                  };
+                  setSelected(null);
+                  onNavigate && onNavigate("documents", ctx);
+                }}>
                 Notă de ședință
               </button>
               <button className="btn btn-outline btn-sm"
@@ -1053,7 +1063,7 @@ const DocForm = ({ doc, patient, token, onDone, onClose }) => {
     try {
       const result = await apiFetch("/api/documents/generate", {
         method: "POST",
-        body: { type: doc.id, patient_id: patient.id, content: form }
+        body: { type: doc.id, patient_id: patient.id, content: form, session_id: patient.session_id || null }
       }, token);
       onDone(result);
     } catch (err) { alert(err.message); }
@@ -1102,7 +1112,7 @@ const DocForm = ({ doc, patient, token, onDone, onClose }) => {
   );
 };
 
-const Documents = ({ token }) => {
+const Documents = ({ token, sessionContext, onClearContext }) => {
   const [docs, setDocs] = useState([]);
   const [patients, setPatients] = useState([]);
   const [selPatient, setSelPatient] = useState("");
@@ -1116,6 +1126,17 @@ const Documents = ({ token }) => {
     apiFetch("/api/patients?limit=100", {}, token).then(d => setPatients(d.data || [])).catch(console.error);
   }, [token]);
 
+  // Pre-selectează clientul și deschide nota dacă vine din calendar
+  useEffect(() => {
+    if (sessionContext?.patient_id) {
+      setSelPatient(sessionContext.patient_id);
+      // Deschide automat formularul de notă de ședință
+      setTimeout(() => {
+        setActiveDoc(DOC_TYPES.find(d => d.id === "nota_sedinta"));
+      }, 300);
+    }
+  }, [sessionContext]);
+
   const selectedPatient = patients.find(p => p.id === selPatient);
 
   const handleDone = (result) => {
@@ -1127,10 +1148,16 @@ const Documents = ({ token }) => {
   return (
     <div>
       <div className="card" style={{ marginBottom: 20 }}>
+        {sessionContext && (
+          <div className="alert-success" style={{ marginBottom: 14, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+            <span>📋 Notă pentru <strong>{sessionContext.patient_name}</strong> · {sessionContext.session_date} {sessionContext.session_hour}</span>
+            <button className="btn btn-outline btn-sm" onClick={() => { onClearContext && onClearContext(); setSelPatient(""); }}>×</button>
+          </div>
+        )}
         <div className="row">
           <div style={{ flex: 1 }}>
             <label className="form-label">Client</label>
-            <select className="form-input" value={selPatient} onChange={e => setSelPatient(e.target.value)}>
+            <select className="form-input" value={selPatient} onChange={e => { setSelPatient(e.target.value); onClearContext && onClearContext(); }}>
               <option value="">— Selectează client —</option>
               {patients.map(p => <option key={p.id} value={p.id}>{p.last_name} {p.first_name}</option>)}
             </select>
@@ -1388,6 +1415,7 @@ const App = () => {
   const [session, setSession] = useState(null);
   const [view, setView] = useState("dashboard");
   const [prevView, setPrevView] = useState(null);
+  const [sessionContext, setSessionContext] = useState(null); // {patient_id, session_id, patient_name}
   const [cabinetInfo, setCabinetInfo] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -1438,9 +1466,9 @@ const App = () => {
   const renderView = () => {
     switch(view) {
       case "dashboard": return <Dashboard token={token} cabinetInfo={cabinetInfo} />;
-      case "calendar": return <Calendar token={token} onNavigate={(v) => { setPrevView(view); setView(v); }} />;
+      case "calendar": return <Calendar token={token} onNavigate={(v, ctx) => { setPrevView(view); if(ctx) setSessionContext(ctx); setView(v); }} />;
       case "patients": return <Patients token={token} />;
-      case "documents": return <Documents token={token} />;
+      case "documents": return <Documents token={token} sessionContext={sessionContext} onClearContext={() => setSessionContext(null)} />;
       case "settings": return <Settings token={token} cabinetInfo={cabinetInfo} onLogout={handleLogout} />;
       default: return null;
     }

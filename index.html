@@ -781,7 +781,12 @@ const Calendar = ({ token, onNavigate }) => {
                 Notă de ședință
               </button>
               <button className="btn btn-outline btn-sm"
-                onClick={() => { setEditSession(selected); setShowEdit(true); setSelected(null); }}>
+                onClick={() => {
+                  const s = selected;
+                  setSelected(null);
+                  setEditSession(s);
+                  setShowEdit(true);
+                }}>
                 Editează
               </button>
               <button className="btn btn-sm" style={{ color: "var(--danger)", border: "1px solid var(--danger)" }}

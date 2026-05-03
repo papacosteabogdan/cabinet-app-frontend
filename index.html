@@ -431,13 +431,22 @@ const Calendar = ({ token }) => {
     const d = new Date(weekData.week_start);
     d.setDate(d.getDate() + i);
     return d;
-  }) : [];
+  }) : Array.from({length: 5}, (_, i) => {
+    const d = new Date();
+    const day = d.getDay();
+    const monday = new Date(d);
+    monday.setDate(d.getDate() - (day === 0 ? 6 : day - 1));
+    monday.setHours(0,0,0,0);
+    const r = new Date(monday);
+    r.setDate(monday.getDate() + i);
+    return r;
+  });
 
   return (
     <div>
       <div className="row-between" style={{ marginBottom: 18 }}>
         <div style={{ fontSize: 18, fontWeight: 600, color: "var(--navy)" }}>
-          {weekData ? `${new Date(weekData.week_start).toLocaleDateString("ro", { day:"numeric", month:"long" })} – ${new Date(weekData.week_end).toLocaleDateString("ro", { day:"numeric", month:"long", year:"numeric" })}` : ""}
+          {weekDates.length > 0 ? `${weekDates[0].toLocaleDateString("ro", { day:"numeric", month:"long" })} – ${weekDates[4].toLocaleDateString("ro", { day:"numeric", month:"long", year:"numeric" })}` : ""}
         </div>
         <div className="row">
           <button className="btn btn-outline btn-sm" onClick={() => setWeekOffset(w => w - 1)}>‹ Prev</button>
@@ -624,49 +633,144 @@ const Patients = ({ token }) => {
 };
 
 // ── Documents ──────────────────────────────────────────────
+const DOC_TYPES = [
+  { id: "nota_sedinta", label: "Notă de Ședință", icon: "📋",
+    fields: [
+      { key: "presenting_today", label: "Prezentare în ședință", type: "textarea" },
+      { key: "interventions", label: "Intervenții terapeutice", type: "textarea" },
+      { key: "patient_response", label: "Răspunsul clientului", type: "textarea" },
+      { key: "clinical_observations", label: "Observații clinice", type: "textarea" },
+      { key: "homework", label: "Temă pentru acasă", type: "text" },
+      { key: "next_session_goals", label: "Obiective ședință următoare", type: "text" },
+    ]
+  },
+  { id: "raport_clinic", label: "Raport Clinic", icon: "📊",
+    fields: [
+      { key: "presenting_problem", label: "Motivul prezentării", type: "textarea" },
+      { key: "clinical_history", label: "Istoric clinic relevant", type: "textarea" },
+      { key: "clinical_observations", label: "Observații clinice", type: "textarea" },
+      { key: "therapeutic_progress", label: "Progres terapeutic", type: "textarea" },
+      { key: "recommendations", label: "Recomandări", type: "textarea" },
+    ]
+  },
+  { id: "evaluare_psihologica", label: "Evaluare Psihologică", icon: "🧠",
+    fields: [
+      { key: "reason", label: "Motivul evaluării", type: "textarea" },
+      { key: "instruments", label: "Instrumente utilizate", type: "text" },
+      { key: "results", label: "Rezultate", type: "textarea" },
+      { key: "conclusions", label: "Concluzii", type: "textarea" },
+      { key: "recommendations", label: "Recomandări", type: "textarea" },
+    ]
+  },
+  { id: "contract_adult", label: "Contract Adult", icon: "📄", fields: [] },
+  { id: "contract_minor", label: "Contract Minor", icon: "📄",
+    fields: [
+      { key: "guardian_name", label: "Nume reprezentant legal", type: "text" },
+      { key: "guardian_relation", label: "Relație cu minorul", type: "text" },
+    ]
+  },
+  { id: "contract_cuplu", label: "Contract Cuplu", icon: "📄",
+    fields: [
+      { key: "partner_name", label: "Numele partenerului", type: "text" },
+    ]
+  },
+  { id: "acord_gdpr", label: "Acord GDPR", icon: "🔒", fields: [] },
+  { id: "scrisoare_trimitere", label: "Scrisoare Trimitere", icon: "✉️",
+    fields: [
+      { key: "destination", label: "Destinatar (specialist/instituție)", type: "text" },
+      { key: "reason", label: "Motivul trimiterii", type: "textarea" },
+      { key: "clinical_summary", label: "Sumar clinic", type: "textarea" },
+    ]
+  },
+];
+
+const DocForm = ({ doc, patient, token, onDone, onClose }) => {
+  const [form, setForm] = useState({});
+  const [generating, setGenerating] = useState(false);
+
+  const generate = async () => {
+    setGenerating(true);
+    try {
+      const result = await apiFetch("/api/documents/generate", {
+        method: "POST",
+        body: { type: doc.id, patient_id: patient.id, content: form }
+      }, token);
+      onDone(result);
+    } catch (err) { alert(err.message); }
+    finally { setGenerating(false); }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" style={{ width: 540 }} onClick={e => e.stopPropagation()}>
+        <div className="modal-title">
+          {doc.icon} {doc.label}
+          <button className="modal-close" onClick={onClose}>×</button>
+        </div>
+        <div className="info-box" style={{ marginBottom: 16 }}>
+          Client: <strong>{patient.last_name} {patient.first_name}</strong>
+        </div>
+        {doc.fields.length === 0 ? (
+          <div className="info-box">Document standard — se generează automat cu datele cabinetului și clientului.</div>
+        ) : (
+          <div style={{ display: "grid", gap: 14 }}>
+            {doc.fields.map(f => (
+              <div className="form-group" key={f.key} style={{ margin: 0 }}>
+                <label className="form-label">{f.label}</label>
+                {f.type === "textarea" ? (
+                  <textarea className="form-input" style={{ resize: "vertical", minHeight: 80 }}
+                    value={form[f.key] || ""}
+                    onChange={e => setForm(x => ({ ...x, [f.key]: e.target.value }))} />
+                ) : (
+                  <input className="form-input" type="text"
+                    value={form[f.key] || ""}
+                    onChange={e => setForm(x => ({ ...x, [f.key]: e.target.value }))} />
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="divider" />
+        <div className="row">
+          <button className="btn btn-primary" onClick={generate} disabled={generating}>
+            {generating ? "Se generează..." : "Generează document"}
+          </button>
+          <button className="btn btn-outline" onClick={onClose}>Anulează</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const Documents = ({ token }) => {
   const [docs, setDocs] = useState([]);
   const [patients, setPatients] = useState([]);
   const [selPatient, setSelPatient] = useState("");
-  const [generating, setGenerating] = useState(null);
+  const [activeDoc, setActiveDoc] = useState(null);
   const [generated, setGenerated] = useState({});
 
+  const loadDocs = () => apiFetch("/api/documents?limit=20", {}, token).then(setDocs).catch(console.error);
+
   useEffect(() => {
-    apiFetch("/api/documents?limit=20", {}, token).then(setDocs).catch(console.error);
-    apiFetch("/api/patients?limit=100&status=activ", {}, token).then(d => setPatients(d.data || [])).catch(console.error);
+    loadDocs();
+    apiFetch("/api/patients?limit=100", {}, token).then(d => setPatients(d.data || [])).catch(console.error);
   }, [token]);
 
-  const DOC_TYPES = [
-    { id: "nota_sedinta", label: "Notă de Ședință", icon: "📋" },
-    { id: "raport_clinic", label: "Raport Clinic", icon: "📊" },
-    { id: "evaluare_psihologica", label: "Evaluare Psihologică", icon: "🧠" },
-    { id: "contract_adult", label: "Contract Adult", icon: "📄" },
-    { id: "contract_minor", label: "Contract Minor", icon: "📄" },
-    { id: "contract_cuplu", label: "Contract Cuplu", icon: "📄" },
-    { id: "acord_gdpr", label: "Acord GDPR", icon: "🔒" },
-    { id: "scrisoare_trimitere", label: "Scrisoare Trimitere", icon: "✉️" },
-  ];
+  const selectedPatient = patients.find(p => p.id === selPatient);
 
-  const generate = async (type) => {
-    if (!selPatient) { alert("Selectează un client mai întâi."); return; }
-    setGenerating(type);
-    try {
-      const result = await apiFetch("/api/documents/generate", {
-        method: "POST", body: { type, patient_id: selPatient, content: {} }
-      }, token);
-      setGenerated(g => ({ ...g, [type]: result }));
-      apiFetch("/api/documents?limit=20", {}, token).then(setDocs).catch(console.error);
-    } catch (err) { alert(err.message); }
-    finally { setGenerating(null); }
+  const handleDone = (result) => {
+    setGenerated(g => ({ ...g, [activeDoc.id]: result }));
+    setActiveDoc(null);
+    loadDocs();
   };
 
   return (
     <div>
       <div className="card" style={{ marginBottom: 20 }}>
         <div className="row">
-          <div>
+          <div style={{ flex: 1 }}>
             <label className="form-label">Client</label>
-            <select className="form-input" style={{ minWidth: 220 }} value={selPatient} onChange={e => setSelPatient(e.target.value)}>
+            <select className="form-input" value={selPatient} onChange={e => setSelPatient(e.target.value)}>
               <option value="">— Selectează client —</option>
               {patients.map(p => <option key={p.id} value={p.id}>{p.last_name} {p.first_name}</option>)}
             </select>
@@ -677,7 +781,6 @@ const Documents = ({ token }) => {
       <div className="grid-4" style={{ marginBottom: 24 }}>
         {DOC_TYPES.map(doc => {
           const isDone = !!generated[doc.id];
-          const isLoading = generating === doc.id;
           return (
             <div className="card" key={doc.id} style={{ padding: 18, borderTop: `3px solid ${isDone ? "var(--success)" : "var(--border)"}` }}>
               <div style={{ fontSize: 26, marginBottom: 8 }}>{doc.icon}</div>
@@ -685,11 +788,12 @@ const Documents = ({ token }) => {
               {isDone ? (
                 <div className="row">
                   <a href={generated[doc.id].docx_url} target="_blank" className="btn btn-outline btn-sm">↓ DOCX</a>
-                  {generated[doc.id].pdf_url && <a href={generated[doc.id].pdf_url} target="_blank" className="btn btn-outline btn-sm">↓ PDF</a>}
                 </div>
               ) : (
-                <button className="btn btn-primary btn-sm" onClick={() => generate(doc.id)} disabled={isLoading || !selPatient}>
-                  {isLoading ? "..." : "Generează"}
+                <button className="btn btn-primary btn-sm"
+                  onClick={() => { if (!selPatient) { alert("Selectează un client."); return; } setActiveDoc(doc); }}
+                  disabled={!selPatient}>
+                  Completează
                 </button>
               )}
             </div>
@@ -711,11 +815,21 @@ const Documents = ({ token }) => {
                 </div>
               </div>
               <Tag type={d.status} />
-              {d.pdf_url && <a href={d.pdf_url} target="_blank" className="btn btn-outline btn-sm">↓ PDF</a>}
+              {d.docx_url && <a href={d.docx_url} target="_blank" className="btn btn-outline btn-sm">↓ DOCX</a>}
             </div>
           ))
         }
       </div>
+
+      {activeDoc && selectedPatient && (
+        <DocForm
+          doc={activeDoc}
+          patient={selectedPatient}
+          token={token}
+          onDone={handleDone}
+          onClose={() => setActiveDoc(null)}
+        />
+      )}
     </div>
   );
 };

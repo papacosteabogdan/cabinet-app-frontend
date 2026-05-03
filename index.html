@@ -407,10 +407,19 @@ const Calendar = ({ token }) => {
   const [selected, setSelected] = useState(null);
   const [weekOffset, setWeekOffset] = useState(0);
 
+  // Calculează monday-ul săptămânii cu offset
+  const getMonday = (offset) => {
+    const now = new Date();
+    const day = now.getDay();
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - (day === 0 ? 6 : day - 1) + offset * 7);
+    monday.setHours(12, 0, 0, 0);
+    return monday;
+  };
+
   const loadWeek = useCallback(() => {
-    const date = new Date();
-    date.setDate(date.getDate() + weekOffset * 7);
-    apiFetch(`/api/sessions/week?date=${date.toISOString()}`, {}, token)
+    const monday = getMonday(weekOffset);
+    apiFetch(`/api/sessions/week?date=${monday.toISOString()}`, {}, token)
       .then(setWeekData).catch(console.error);
   }, [token, weekOffset]);
 
@@ -427,26 +436,19 @@ const Calendar = ({ token }) => {
     });
   };
 
-  const weekDates = weekData ? DAYS.map((_, i) => {
-    const d = new Date(weekData.week_start);
-    d.setDate(d.getDate() + i);
+  // Generează datele săptămânii din weekOffset direct (nu depinde de API)
+  const weekDates = Array.from({length: 5}, (_, i) => {
+    const monday = getMonday(weekOffset);
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
     return d;
-  }) : Array.from({length: 5}, (_, i) => {
-    const d = new Date();
-    const day = d.getDay();
-    const monday = new Date(d);
-    monday.setDate(d.getDate() - (day === 0 ? 6 : day - 1));
-    monday.setHours(0,0,0,0);
-    const r = new Date(monday);
-    r.setDate(monday.getDate() + i);
-    return r;
   });
 
   return (
     <div>
       <div className="row-between" style={{ marginBottom: 18 }}>
         <div style={{ fontSize: 18, fontWeight: 600, color: "var(--navy)" }}>
-          {weekDates.length > 0 ? `${weekDates[0].toLocaleDateString("ro", { day:"numeric", month:"long" })} – ${weekDates[4].toLocaleDateString("ro", { day:"numeric", month:"long", year:"numeric" })}` : ""}
+          {`${weekDates[0].toLocaleDateString("ro", { day:"numeric", month:"long" })} – ${weekDates[4].toLocaleDateString("ro", { day:"numeric", month:"long", year:"numeric" })}`}
         </div>
         <div className="row">
           <button className="btn btn-outline btn-sm" onClick={() => setWeekOffset(w => w - 1)}>‹ Prev</button>

@@ -425,9 +425,12 @@ const NewSessionModal = ({ token, onClose, onSaved, defaultDate }) => {
     if (!form.starts_at) { setError("Selectează data și ora."); return; }
     setSaving(true); setError(null);
     try {
+      // Convertim datetime-local în ISO cu timezone corect
+      const localDate = new Date(form.starts_at);
+      const isoDate = localDate.toISOString();
       await apiFetch("/api/sessions", {
         method: "POST",
-        body: { ...form, duration_min: Number(form.duration_min) }
+        body: { ...form, starts_at: isoDate, duration_min: Number(form.duration_min) }
       }, token);
       onSaved();
       onClose();
@@ -473,12 +476,7 @@ const NewSessionModal = ({ token, onClose, onSaved, defaultDate }) => {
                 <option value="minor">Minor</option>
               </select>
             </div>
-            <div className="form-group" style={{ margin:0 }}>
-              <label className="form-label">Durată (min)</label>
-              <div className="form-input" style={{ background:"var(--cream)", color:"var(--muted)", display:"flex", alignItems:"center" }}>
-                {form.duration_min} minute
-              </div>
-            </div>
+
           </div>
 
           <div className="form-group" style={{ margin:0 }}>
@@ -539,10 +537,11 @@ const Calendar = ({ token }) => {
     if (!weekData?.sessions) return null;
     return weekData.sessions.find(s => {
       const d = new Date(s.starts_at);
-      const dow = d.getDay();
-      const isoDay = dow === 0 ? 7 : dow;
-      const h = `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
-      return isoDay === dayIdx + 1 && h === hour;
+      // Folosim ora locală (nu UTC)
+      const dow = d.getDay(); // 0=Dum, 1=Lun...
+      const isoDay = dow === 0 ? 7 : dow; // 1=Lun...7=Dum
+      const localH = d.toLocaleTimeString("ro", { hour:"2-digit", minute:"2-digit", hour12:false });
+      return isoDay === dayIdx + 1 && localH === hour;
     });
   };
 

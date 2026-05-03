@@ -426,8 +426,15 @@ const NewSessionModal = ({ token, onClose, onSaved, defaultDate }) => {
     setSaving(true); setError(null);
     try {
       if (!form.date || !form.hour) { setError("Selectează data și ora."); setSaving(false); return; }
-      const localDate = new Date(`${form.date}T${form.hour}:00`);
-      const isoDate = localDate.toISOString();
+      // Construim ISO string cu offset Romania (+03:00 vara, +02:00 iarna)
+      // Detectăm offset-ul curent al browserului
+      const tempDate = new Date(`${form.date}T${form.hour}:00`);
+      const offsetMin = tempDate.getTimezoneOffset(); // negativ pentru EST+
+      const offsetSign = offsetMin <= 0 ? "+" : "-";
+      const offsetAbs = Math.abs(offsetMin);
+      const offsetH = String(Math.floor(offsetAbs/60)).padStart(2,"0");
+      const offsetM = String(offsetAbs%60).padStart(2,"0");
+      const isoDate = `${form.date}T${form.hour}:00${offsetSign}${offsetH}:${offsetM}`;
       await apiFetch("/api/sessions", {
         method: "POST",
         body: {

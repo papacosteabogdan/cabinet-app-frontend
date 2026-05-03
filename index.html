@@ -269,7 +269,7 @@ const Tag = ({ type }) => {
 };
 
 // ── Login ──────────────────────────────────────────────────
-const Login = ({ onLogin }) => {
+const Login = ({ onLogin, onRegister }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -313,6 +313,12 @@ const Login = ({ onLogin }) => {
           onClick={handleLogin} disabled={loading}>
           {loading ? "Se autentifică..." : "Intră în cont"}
         </button>
+        <div style={{ textAlign:"center", marginTop:16, fontFamily:"'DM Sans',sans-serif", fontSize:12, color:"var(--muted)" }}>
+          Nu ai cont?{" "}
+          <span style={{ color:"var(--navy)", cursor:"pointer", fontWeight:500 }} onClick={onRegister}>
+            Înregistrează-te
+          </span>
+        </div>
       </div>
     </div>
   );
@@ -1142,6 +1148,156 @@ const Settings = ({ token, cabinetInfo, onLogout }) => (
   </div>
 );
 
+
+// ── Register ───────────────────────────────────────────────
+const Register = ({ onBack, onSuccess }) => {
+  const [step, setStep] = useState(1); // 1=cont, 2=cabinet
+  const [form, setForm] = useState({
+    email: "", password: "", confirm: "",
+    full_name: "", cod_cpr: "", phone: "",
+    cabinet_name: "Cabinet Individual de Psihologie",
+    city: "București",
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [userId, setUserId] = useState(null);
+
+  const createAccount = async () => {
+    if (!form.email || !form.password) { setError("Email și parolă obligatorii."); return; }
+    if (form.password !== form.confirm) { setError("Parolele nu coincid."); return; }
+    if (form.password.length < 8) { setError("Parola trebuie să aibă minim 8 caractere."); return; }
+    setLoading(true); setError(null);
+    try {
+      const { data, error } = await sb.auth.signUp({ email: form.email, password: form.password });
+      if (error) throw error;
+      setUserId(data.user.id);
+      setStep(2);
+    } catch(err) { setError(err.message); }
+    finally { setLoading(false); }
+  };
+
+  const createCabinet = async () => {
+    if (!form.full_name || !form.cod_cpr) { setError("Nume și Cod CPR obligatorii."); return; }
+    setLoading(true); setError(null);
+    try {
+      // Login pentru a obține token
+      const { data: loginData, error: loginErr } = await sb.auth.signInWithPassword({
+        email: form.email, password: form.password
+      });
+      if (loginErr) throw loginErr;
+      const token = loginData.session.access_token;
+
+      // Update profil
+      await apiFetch("/api/profile", {
+        method: "PATCH",
+        body: { full_name: form.full_name, cod_cpr: form.cod_cpr, phone: form.phone }
+      }, token);
+
+      // Creează cabinet
+      await apiFetch("/api/cabinet/create", {
+        method: "POST",
+        body: {
+          name: form.cabinet_name,
+          city: form.city,
+          email: form.email,
+          phone: form.phone,
+        }
+      }, token);
+
+      onSuccess(loginData.session);
+    } catch(err) { setError(err.message); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <div className="login-page">
+      <div className="login-card" style={{ width: 420 }}>
+        <div className="login-logo">
+          <div className="login-gem" />
+          <div className="login-title">cabinet.app</div>
+          <div className="login-sub">{step === 1 ? "Creează cont" : "Date cabinet"}</div>
+        </div>
+
+        {/* Progress */}
+        <div style={{ display:"flex", gap:8, marginBottom:24 }}>
+          {[1,2].map(s => (
+            <div key={s} style={{ flex:1, height:3, borderRadius:2,
+              background: s <= step ? "var(--gold)" : "var(--border)" }} />
+          ))}
+        </div>
+
+        {error && <div className="login-error">{error}</div>}
+
+        {step === 1 && (
+          <div style={{ display:"grid", gap:14 }}>
+            <div className="form-group" style={{ margin:0 }}>
+              <label className="form-label">Email</label>
+              <input className="form-input" type="email" placeholder="email@exemplu.ro"
+                value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
+            </div>
+            <div className="form-group" style={{ margin:0 }}>
+              <label className="form-label">Parolă</label>
+              <input className="form-input" type="password" placeholder="Minim 8 caractere"
+                value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} />
+            </div>
+            <div className="form-group" style={{ margin:0 }}>
+              <label className="form-label">Confirmă parola</label>
+              <input className="form-input" type="password"
+                value={form.confirm} onChange={e => setForm(f => ({ ...f, confirm: e.target.value }))}
+                onKeyDown={e => e.key === "Enter" && createAccount()} />
+            </div>
+            <button className="btn btn-primary btn-lg" style={{ marginTop:4 }}
+              onClick={createAccount} disabled={loading}>
+              {loading ? "Se creează contul..." : "Continuă →"}
+            </button>
+          </div>
+        )}
+
+        {step === 2 && (
+          <div style={{ display:"grid", gap:14 }}>
+            <div className="form-group" style={{ margin:0 }}>
+              <label className="form-label">Nume complet *</label>
+              <input className="form-input" placeholder="Ion Popescu"
+                value={form.full_name} onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))} />
+            </div>
+            <div className="form-group" style={{ margin:0 }}>
+              <label className="form-label">Cod CPR *</label>
+              <input className="form-input" placeholder="ex: 12345"
+                value={form.cod_cpr} onChange={e => setForm(f => ({ ...f, cod_cpr: e.target.value }))} />
+            </div>
+            <div className="form-group" style={{ margin:0 }}>
+              <label className="form-label">Telefon</label>
+              <input className="form-input" placeholder="07xx xxx xxx"
+                value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
+            </div>
+            <div className="form-group" style={{ margin:0 }}>
+              <label className="form-label">Numele cabinetului</label>
+              <input className="form-input"
+                value={form.cabinet_name} onChange={e => setForm(f => ({ ...f, cabinet_name: e.target.value }))} />
+            </div>
+            <div className="form-group" style={{ margin:0 }}>
+              <label className="form-label">Oraș</label>
+              <input className="form-input"
+                value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} />
+            </div>
+            <button className="btn btn-primary btn-lg" style={{ marginTop:4 }}
+              onClick={createCabinet} disabled={loading}>
+              {loading ? "Se configurează..." : "Finalizează înregistrarea"}
+            </button>
+          </div>
+        )}
+
+        <div style={{ textAlign:"center", marginTop:20, fontFamily:"'DM Sans',sans-serif", fontSize:12, color:"var(--muted)" }}>
+          Ai deja cont?{" "}
+          <span style={{ color:"var(--navy)", cursor:"pointer", fontWeight:500 }} onClick={onBack}>
+            Autentifică-te
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ── App principal ──────────────────────────────────────────
 const VIEWS = [
   { id: "dashboard", label: "Dashboard", icon: "▦" },
@@ -1187,7 +1343,18 @@ const App = () => {
     </div>
   );
 
-  if (!session) return <Login onLogin={setSession} />;
+  const [showRegister, setShowRegister] = useState(false);
+
+  if (!session && showRegister) return (
+    <Register
+      onBack={() => setShowRegister(false)}
+      onSuccess={(s) => { setSession(s); setShowRegister(false); }}
+    />
+  );
+
+  if (!session) return (
+    <Login onLogin={setSession} onRegister={() => setShowRegister(true)} />
+  );
 
   const token = session.access_token;
 

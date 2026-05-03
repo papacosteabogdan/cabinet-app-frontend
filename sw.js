@@ -1,32 +1,27 @@
-const CACHE_NAME = 'cabinet-app-v1';
-const STATIC_ASSETS = ['/'];
+// Versiunea se schimbă la fiecare deploy — forțează refresh automat
+const CACHE_VERSION = 'v' + Date.now();
+const CACHE_NAME = 'cabinet-app-' + CACHE_VERSION;
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(STATIC_ASSETS))
-  );
-  self.skipWaiting();
+  self.skipWaiting(); // Activează imediat fără să aștepte tab-uri închise
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
+      Promise.all(keys.map(k => caches.delete(k))) // Șterge TOATE cache-urile vechi
     )
   );
   self.clients.claim();
 });
 
 self.addEventListener('fetch', (event) => {
-  // Doar GET requests
   if (event.request.method !== 'GET') return;
-  
-  // Nu intercepta API calls
   if (event.request.url.includes('railway.app') || 
       event.request.url.includes('supabase.co')) return;
 
+  // Network first — mereu versiunea nouă
   event.respondWith(
-    fetch(event.request)
-      .catch(() => caches.match(event.request))
+    fetch(event.request).catch(() => caches.match(event.request))
   );
 });

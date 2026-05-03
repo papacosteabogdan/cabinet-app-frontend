@@ -391,6 +391,9 @@ const Login = ({ onLogin, onRegister, onForgot }) => {
           {loading ? "Se autentifică..." : "Intră în cont"}
         </button>
         <div style={{ textAlign:"center", marginTop:16, fontFamily:"'DM Sans',sans-serif", fontSize:12, color:"var(--muted)" }}>
+          <span style={{ color:"var(--navy)", cursor:"pointer" }} onClick={onForgot}>Ai uitat parola?</span>
+        </div>
+        <div style={{ textAlign:"center", marginTop:10, fontFamily:"'DM Sans',sans-serif", fontSize:12, color:"var(--muted)" }}>
           Nu ai cont?{" "}
           <span style={{ color:"var(--navy)", cursor:"pointer", fontWeight:500 }} onClick={onRegister}>
             Înregistrează-te

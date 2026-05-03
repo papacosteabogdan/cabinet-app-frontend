@@ -759,7 +759,7 @@ const Calendar = ({ token, onNavigate }) => {
         />
       )}
 
-      {selected && (
+      {selected && !showEdit && (
         <div className="modal-overlay" onClick={() => setSelected(null)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-title">
@@ -781,12 +781,7 @@ const Calendar = ({ token, onNavigate }) => {
                 Notă de ședință
               </button>
               <button className="btn btn-outline btn-sm"
-                onClick={() => {
-                  const s = selected;
-                  setSelected(null);
-                  setEditSession(s);
-                  setShowEdit(true);
-                }}>
+                onClick={() => setShowEdit(true)}>
                 Editează
               </button>
               <button className="btn btn-sm" style={{ color: "var(--danger)", border: "1px solid var(--danger)" }}

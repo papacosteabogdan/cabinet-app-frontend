@@ -346,7 +346,7 @@ const Tag = ({ type }) => {
 };
 
 // ── Login ──────────────────────────────────────────────────
-const Login = ({ onLogin, onRegister }) => {
+const Login = ({ onLogin, onRegister, onForgot }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -1253,6 +1253,71 @@ const Settings = ({ token, cabinetInfo, onLogout }) => (
 );
 
 
+
+// ── Forgot Password ────────────────────────────────────────
+const ForgotPassword = ({ onBack }) => {
+  const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState(null);
+
+  const send = async () => {
+    if (!email) { setError("Introduceți adresa de email."); return; }
+    setLoading(true); setError(null);
+    try {
+      const { error } = await sb.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin + "/?reset=true",
+      });
+      if (error) throw error;
+      setSent(true);
+    } catch(err) { setError(err.message); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <div className="login-page">
+      <div className="login-card">
+        <div className="login-logo">
+          <div className="login-gem" />
+          <div className="login-title">cabinet.app</div>
+          <div className="login-sub">Resetare parolă</div>
+        </div>
+        {sent ? (
+          <div>
+            <div className="alert-success" style={{ marginBottom: 20, textAlign:"center" }}>
+              ✓ Email trimis! Verificați căsuța poștală.
+            </div>
+            <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:13, color:"var(--muted)", textAlign:"center", marginBottom:20 }}>
+              Urmați linkul din email pentru a seta o parolă nouă.
+            </p>
+            <button className="btn btn-outline btn-lg" onClick={onBack}>← Înapoi la login</button>
+          </div>
+        ) : (
+          <div>
+            <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:13, color:"var(--muted)", marginBottom:20, lineHeight:1.6 }}>
+              Introduceți adresa de email asociată contului. Veți primi un link de resetare a parolei.
+            </p>
+            {error && <div className="login-error">{error}</div>}
+            <div className="form-group">
+              <label className="form-label">Email</label>
+              <input className="form-input" type="email" placeholder="email@exemplu.ro"
+                value={email} onChange={e => setEmail(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && send()} />
+            </div>
+            <button className="btn btn-primary btn-lg" style={{ marginTop: 8 }}
+              onClick={send} disabled={loading}>
+              {loading ? "Se trimite..." : "Trimite link de resetare"}
+            </button>
+            <div style={{ textAlign:"center", marginTop:16, fontFamily:"'DM Sans',sans-serif", fontSize:12, color:"var(--muted)" }}>
+              <span style={{ color:"var(--navy)", cursor:"pointer" }} onClick={onBack}>← Înapoi la login</span>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // ── Register ───────────────────────────────────────────────
 const Register = ({ onBack, onSuccess }) => {
   const [step, setStep] = useState(1); // 1=cont, 2=cabinet
@@ -1529,11 +1594,16 @@ const App = () => {
   };
 
   const [showRegister, setShowRegister] = useState(false);
+  const [showForgot, setShowForgot] = useState(false);
 
   if (loading) return (
     <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100vh", background:"var(--navy)" }}>
       <div style={{ color:"var(--gold)", fontSize:24, fontWeight:600 }}>cabinet.app</div>
     </div>
+  );
+
+  if (!session && showForgot) return (
+    <ForgotPassword onBack={() => setShowForgot(false)} />
   );
 
   if (!session && showRegister) return (
@@ -1544,7 +1614,11 @@ const App = () => {
   );
 
   if (!session) return (
-    <Login onLogin={setSession} onRegister={() => setShowRegister(true)} />
+    <Login
+      onLogin={setSession}
+      onRegister={() => setShowRegister(true)}
+      onForgot={() => setShowForgot(true)}
+    />
   );
 
   const token = session.access_token;

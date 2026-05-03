@@ -401,11 +401,120 @@ const Dashboard = ({ token, cabinetInfo }) => {
   );
 };
 
+// ── Modal Programare Nouă ──────────────────────────────────
+const NewSessionModal = ({ token, onClose, onSaved, defaultDate }) => {
+  const [patients, setPatients] = useState([]);
+  const [form, setForm] = useState({
+    patient_id: "",
+    starts_at: defaultDate || "",
+    duration_min: 50,
+    session_type: "individual",
+    modality: "in_person",
+    notes: "",
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    apiFetch("/api/patients?limit=100", {}, token)
+      .then(d => setPatients(d.data || [])).catch(console.error);
+  }, [token]);
+
+  const save = async () => {
+    if (!form.patient_id) { setError("Selectează un client."); return; }
+    if (!form.starts_at) { setError("Selectează data și ora."); return; }
+    setSaving(true); setError(null);
+    try {
+      await apiFetch("/api/sessions", {
+        method: "POST",
+        body: { ...form, duration_min: Number(form.duration_min) }
+      }, token);
+      onSaved();
+      onClose();
+    } catch (err) { setError(err.message); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" style={{ width: 480 }} onClick={e => e.stopPropagation()}>
+        <div className="modal-title">
+          Programare nouă
+          <button className="modal-close" onClick={onClose}>×</button>
+        </div>
+
+        {error && <div style={{ background:"#FEE2E2", border:"1px solid #FCA5A5", borderRadius:6, padding:"10px 14px", marginBottom:14, fontFamily:"'DM Sans',sans-serif", fontSize:12, color:"var(--danger)" }}>{error}</div>}
+
+        <div style={{ display:"grid", gap:14 }}>
+          <div className="form-group" style={{ margin:0 }}>
+            <label className="form-label">Client *</label>
+            <select className="form-input" value={form.patient_id} onChange={e => setForm(f => ({ ...f, patient_id: e.target.value }))}>
+              <option value="">— Selectează client —</option>
+              {patients.map(p => <option key={p.id} value={p.id}>{p.last_name} {p.first_name}</option>)}
+            </select>
+          </div>
+
+          <div className="form-group" style={{ margin:0 }}>
+            <label className="form-label">Data și ora *</label>
+            <input className="form-input" type="datetime-local"
+              value={form.starts_at}
+              onChange={e => setForm(f => ({ ...f, starts_at: e.target.value }))} />
+          </div>
+
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+            <div className="form-group" style={{ margin:0 }}>
+              <label className="form-label">Tip ședință</label>
+              <select className="form-input" value={form.session_type} onChange={e => {
+                const type = e.target.value;
+                setForm(f => ({ ...f, session_type: type, duration_min: type === "cuplu" ? 100 : 50 }));
+              }}>
+                <option value="individual">Individual</option>
+                <option value="cuplu">Cuplu</option>
+                <option value="minor">Minor</option>
+              </select>
+            </div>
+            <div className="form-group" style={{ margin:0 }}>
+              <label className="form-label">Durată (min)</label>
+              <div className="form-input" style={{ background:"var(--cream)", color:"var(--muted)", display:"flex", alignItems:"center" }}>
+                {form.duration_min} minute
+              </div>
+            </div>
+          </div>
+
+          <div className="form-group" style={{ margin:0 }}>
+            <label className="form-label">Modalitate</label>
+            <select className="form-input" value={form.modality} onChange={e => setForm(f => ({ ...f, modality: e.target.value }))}>
+              <option value="in_person">Față în față</option>
+              <option value="online">Online</option>
+            </select>
+          </div>
+
+          <div className="form-group" style={{ margin:0 }}>
+            <label className="form-label">Note</label>
+            <textarea className="form-input" style={{ resize:"vertical", minHeight:60 }}
+              value={form.notes}
+              onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
+          </div>
+        </div>
+
+        <div className="divider" />
+        <div className="row">
+          <button className="btn btn-primary" onClick={save} disabled={saving}>
+            {saving ? "Se salvează..." : "Salvează programarea"}
+          </button>
+          <button className="btn btn-outline" onClick={onClose}>Anulează</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ── Calendar ───────────────────────────────────────────────
 const Calendar = ({ token }) => {
   const [weekData, setWeekData] = useState(null);
   const [selected, setSelected] = useState(null);
   const [weekOffset, setWeekOffset] = useState(0);
+  const [showNew, setShowNew] = useState(false);
 
   // Calculează monday-ul săptămânii cu offset
   const getMonday = (offset) => {
@@ -454,7 +563,7 @@ const Calendar = ({ token }) => {
           <button className="btn btn-outline btn-sm" onClick={() => setWeekOffset(w => w - 1)}>‹ Prev</button>
           <button className="btn btn-outline btn-sm" onClick={() => setWeekOffset(0)}>Azi</button>
           <button className="btn btn-outline btn-sm" onClick={() => setWeekOffset(w => w + 1)}>Next ›</button>
-          <button className="btn btn-gold btn-sm">+ Programare</button>
+          <button className="btn btn-gold btn-sm" onClick={() => setShowNew(true)}>+ Programare</button>
         </div>
       </div>
 
@@ -492,6 +601,14 @@ const Calendar = ({ token }) => {
           ))}
         </div>
       </div>
+
+      {showNew && (
+        <NewSessionModal
+          token={token}
+          onClose={() => setShowNew(false)}
+          onSaved={loadWeek}
+        />
+      )}
 
       {selected && (
         <div className="modal-overlay" onClick={() => setSelected(null)}>
